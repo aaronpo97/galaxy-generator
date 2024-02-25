@@ -9,35 +9,30 @@ import GUI from "lil-gui";
 const gui = new GUI();
 
 // Canvas
-const canvas = document.querySelector("canvas.webgl");
+const canvas = document.querySelector<HTMLCanvasElement>("canvas.webgl")!;
 
 // Scene
 const scene = new THREE.Scene();
 
-const parameters = {};
+const parameters = {
+  count: 20000,
+  size: 0.008,
+  radius: 5,
+  branches: 3,
+  spin: 1,
+  tilt: 0,
+  randomness: 0.2,
+  randomnessPower: 3,
+  insideColor: "#b3d1ff",
+  outsideColor: "#1b3984",
+  rotationSpeed: 0.25,
 
-parameters.count = 100000;
-parameters.size = 0.008;
-parameters.radius = 5;
-parameters.branches = 3;
-parameters.spin = 1;
-parameters.randomness = 0.2;
-parameters.randomnessPower = 3;
-parameters.insideColor = "#ff6030";
-parameters.outsideColor = "#1b3984";
+  centerRadius: 1,
+};
 
-/**
- * @type {THREE.BufferGeometry | null}
- */
-let geometry = null;
-/**
- * @type {THREE.PointsMaterial | null}
- */
-let material = null;
-/**
- * @type {THREE.Points | null}
- */
-let points = null;
+let geometry: THREE.BufferGeometry | null = null;
+let material: THREE.PointsMaterial | null = null;
+let points: THREE.Points | null = null;
 
 const generateGalaxy = () => {
   const positions = new Float32Array(parameters.count * 3);
@@ -78,7 +73,7 @@ const generateGalaxy = () => {
     colors[i3 + 2] = mixedColor.b;
   }
 
-  if (points !== null) {
+  if (points && geometry && material) {
     geometry.dispose();
     material.dispose();
     scene.remove(points);
@@ -106,7 +101,7 @@ generateGalaxy();
 gui
   .add(parameters, "count")
   .min(100)
-  .max(1000000)
+  .max(100000)
   .step(100)
   .onFinishChange(generateGalaxy);
 
@@ -152,34 +147,46 @@ gui
   .step(0.001)
   .onFinishChange(generateGalaxy);
 
+gui
+  .add(parameters, "rotationSpeed")
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .onFinishChange(generateGalaxy);
+
+gui
+  .add(parameters, "tilt")
+  .min((Math.PI / 2) * -1)
+  .max(Math.PI / 2)
+  .step(0.001)
+  .onFinishChange(generateGalaxy);
+
+gui
+  .add(parameters, "centerRadius")
+  .min(0)
+  .max(10)
+  .step(0.01)
+  .onFinishChange(generateGalaxy);
+
 gui.addColor(parameters, "insideColor").onFinishChange(generateGalaxy);
 gui.addColor(parameters, "outsideColor").onFinishChange(generateGalaxy);
-/**
- * Sizes
- */
+
 const sizes = {
   width: window.innerWidth,
   height: window.innerHeight,
 };
 
 window.addEventListener("resize", () => {
-  // Update sizes
   sizes.width = window.innerWidth;
   sizes.height = window.innerHeight;
 
-  // Update camera
   camera.aspect = sizes.width / sizes.height;
   camera.updateProjectionMatrix();
 
-  // Update renderer
   renderer.setSize(sizes.width, sizes.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
-/**
- * Camera
- */
-// Base camera
 const camera = new THREE.PerspectiveCamera(
   75,
   sizes.width / sizes.height,
@@ -191,34 +198,26 @@ camera.position.y = 3;
 camera.position.z = 3;
 scene.add(camera);
 
-// Controls
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 
-/**
- * Renderer
- */
-const renderer = new THREE.WebGLRenderer({
-  canvas: canvas,
-});
+const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-/**
- * Animate
- */
 const clock = new THREE.Clock();
 
 const tick = () => {
+  if (!points || !geometry || !material) return;
+
   const elapsedTime = clock.getElapsedTime();
 
-  // Update controls
+  points.rotation.y = elapsedTime * parameters.rotationSpeed * 0.1;
+
+  // tilt the galaxy
+  points.rotation.x = parameters.tilt;
   controls.update();
-
-  // Render
   renderer.render(scene, camera);
-
-  // Call tick again on the next frame
   window.requestAnimationFrame(tick);
 };
 
